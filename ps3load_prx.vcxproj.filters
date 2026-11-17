@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="source\prx.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\miniz.c">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\stdafx.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\allocator.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\miniz.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\paf.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stdafx.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stdc.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vshmain.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vshtask.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source">
+      <UniqueIdentifier>{1525d859-4862-4a6a-be27-62441c549639}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Include">
+      <UniqueIdentifier>{ad3e0501-9136-402a-aafb-8ff809609ca2}</UniqueIdentifier>
+      <Extensions>*.h</Extensions>
+    </Filter>
+  </ItemGroup>
+</Project>
