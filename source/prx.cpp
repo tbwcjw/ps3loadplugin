@@ -93,8 +93,15 @@ static void wait_for_xmb(int timeout_s)
 	}
 }
 
-
-
+static void sclose(int *socket_e)
+{
+	if (*socket_e != -1)
+	{
+		shutdown(*socket_e, SHUT_RDWR);
+		socketclose(*socket_e);
+		*socket_e = -1;
+	}
+}
 
 static int connect_to_webman()
 {
@@ -112,20 +119,11 @@ static int connect_to_webman()
 
 	if (connect(s, (struct sockaddr*)&sin, sizeof(sin)) < 0)
 	{
+		sclose(&s);
 		return -1;
 	}
 
 	return s;
-}
-
-static void sclose(int *socket_e)
-{
-	if (*socket_e != -1)
-	{
-		shutdown(*socket_e, SHUT_RDWR);
-		socketclose(*socket_e);
-		*socket_e = -1;
-	}
 }
 
 static int send_wm_request(const char *cmd)
@@ -146,7 +144,14 @@ static int send_wm_request(const char *cmd)
 	if (wm_s >= 0)
 	{
 		char wm_cmd[1048];
-		int cmd_len = sprintf(wm_cmd, "GET %s HTTP/1.0\r\n", cmd);
+		int cmd_len = snprintf(wm_cmd, sizeof(wm_cmd), "GET %s HTTP/1.0\r\n", cmd);
+		
+		if (cmd_len < 0 || cmd_len >= sizeof(wm_cmd))
+		{
+			sclose(&wm_s);
+			return -1; 
+		}
+
 		send(wm_s, wm_cmd, cmd_len, 0);
 		sclose(&wm_s);
 		return 0;
@@ -250,6 +255,7 @@ static void worker_thread(uint64_t arg)
 	vshtask_notify(PS3LOADTITLE PS3LOADVERSION "\r\n" PS3LOADAUTHOR);
 
 retry:
+	sys_timer_usleep(IDLE_POLL);				//prevent busy wait
 	if (!running)
 	{
 		goto done;
@@ -271,7 +277,7 @@ retry:
 	server.sin_port = htons(PORT);
 
 	listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (listen_socket <= 0)
+	if (listen_socket < 0)
 	{
 		vshtask_notify("Listen socket failed to open");
 		goto retry;
@@ -308,7 +314,10 @@ loop:
 		}
 
 		if (!running)
+		{
+			sclose(&f);
 			break;
+		}
 
 		uint32_t magic = 0;
 
@@ -316,7 +325,7 @@ loop:
 		if (ret != sizeof(magic))
 		{
 			vshtask_notify("No magic");
-			close(f);
+			sclose(&f);
 			goto loop;
 		}
 
@@ -325,7 +334,7 @@ loop:
 		if (magic != HAXX_MAGIC)
 		{
 			vshtask_notify("Invalid magic");
-			close(f);
+			sclose(&f);
 			goto loop;
 		}
 		
@@ -333,7 +342,7 @@ loop:
 		if (ret != sizeof(magic))
 		{
 			vshtask_notify("No magic");
-			close(f);
+			sclose(&f);
 			goto loop;
 		}
 
@@ -344,7 +353,7 @@ loop:
 		if (ret != sizeof(filesize))
 		{
 			vshtask_notify("Invalid filesize");
-			close(f);
+			sclose(&f);
 			goto loop;
 		}
 
@@ -352,7 +361,7 @@ loop:
 		if (ret != sizeof(uncompressed))
 		{
 			vshtask_notify("No uncompressed");
-			close(f);
+			sclose(&f);
 			goto loop;
 		}
 
@@ -362,6 +371,13 @@ loop:
 		uint32_t pos = 0;
 		uint8_t *data = (uint8_t*)malloc(filesize);
 
+		if (!data)
+		{
+			vshtask_notify("Failed to allocate receive buffer");
+			sclose(&f);
+			goto loop;
+		}
+
 		while (pos < filesize)
 		{
 			cnt = MIN(4096, filesize - pos);
@@ -369,14 +385,14 @@ loop:
 			if (ret <= 0)
 			{
 				free(data);
-				close(f);
+				sclose(&f);
 				goto loop;
 			}
 
 			pos += ret;
 		}
 
-		close(f);
+		sclose(&f);
 
 		vshtask_notify("Decompressing...");
 
@@ -386,6 +402,14 @@ loop:
 			uLongf final = uncompressed;
 
 			data = (uint8_t*)malloc(final);
+
+			if (!data)
+			{
+				free(compressed);
+				vshtask_notify("Failed to allocate decompression buffer");
+				goto loop;
+			}
+
 			ret = uncompress(data, &final, compressed, filesize);
 			if (ret != Z_OK)
 			{
@@ -414,7 +438,7 @@ loop:
 		if (f < 0)
 		{
 			vshtask_notify("Failed to open");
-			close(f);
+			free(data);
 			goto loop;
 		}
 
@@ -426,6 +450,7 @@ loop:
 			{
 				vshtask_notify("Failed to write");
 				close(f);
+				free(data);
 				goto loop;
 			}
 
@@ -509,7 +534,9 @@ loop:
 					f = open(path, (CELL_FS_O_CREAT | CELL_FS_O_TRUNC | CELL_FS_O_WRONLY), (S_IRWXU | S_IRWXG | S_IRWXO));
 					if (f < 0)
 					{
-						close(f);
+						mz_free(zip_buffer);
+						mz_zip_reader_end(&archive);
+						free(data);
 						goto loop;
 					}
 
@@ -524,6 +551,9 @@ loop:
 						if (write(f, buffer + pos, cnt) != cnt)
 						{
 							close(f);
+							mz_free(zip_buffer);
+							mz_zip_reader_end(&archive);
+							free(data);
 							goto loop;
 						}
 
@@ -539,6 +569,8 @@ loop:
 		}
 		mz_zip_reader_end(&archive);
 launch:
+
+		sys_timer_usleep(IDLE_POLL);
 		//exit to xmb
 		if (!IS_ON_XMB)
 		{
@@ -557,12 +589,15 @@ launch:
 			vshtask_notify("Failed to unmount emulated bdvd");
 		}
 		wbsock = send_wm_request("/app_home.ps3");
+		if (wbsock < 0)
 		{
 			vshtask_notify("Failed to reset app_home");
 		}
 
 
 		free(data);
+		data = NULL;
+
 		if (!strlen(bootpath)) continue;
 
 		//mount
@@ -571,6 +606,12 @@ launch:
 		vshtask_notify(bootpath);
 
 mount:
+
+		if (!running)
+		{
+			goto done;
+		}
+
 		wbsock = send_wm_request(cmd);
 		if (wbsock < 0)
 		{

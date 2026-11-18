@@ -54,7 +54,11 @@
       <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>libsn.a;libm.a;libio_stub.a;libfs_stub.a;libnet_stub.a;C:\Users\Optiplex\Desktop\ps3load_prx\ps3load_prx\lib\libvshtask_export_stub.a;C:\Users\Optiplex\Desktop\ps3load_prx\ps3load_prx\lib\libstdc_export_stub.a;C:\Users\Optiplex\Desktop\ps3load_prx\ps3load_prx\lib\liballocator_export_stub.a;C:\Users\Optiplex\Desktop\ps3load_prx\ps3load_prx\lib\libpaf_export_stub.a;C:\Users\Optiplex\Desktop\ps3load_prx\ps3load_prx\lib\libvshmain_export_stub.a</AdditionalDependencies>
+      <AdditionalDependencies>libsn.a;libm.a;libio_stub.a;libfs_stub.a;libnet_stub.a;$(ProjectDir)lib\libvshtask_export_stub.a;$(ProjectDir)lib\libstdc_export_stub.a;
+$(ProjectDir)lib\liballocator_export_stub.a;
+$(ProjectDir)lib\libpaf_export_stub.a;
+$(ProjectDir)lib\libvshmain_export_stub.a</AdditionalDependencies>
+      <OutputFormat>FSPRXFile</OutputFormat>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|PS3'">
