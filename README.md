@@ -6,6 +6,8 @@ enabling SELF applications to be launched over the network using the ps3load cli
 This tool runs as a background service enabling SELF applications to be 
 launched from the XMB, in-game, etc.
 
+Please note that PS3LoadPlugin is still experimental at this time.
+
 ## Requirements
 
 I am targeting Evilnat 4.93 CEX Cobra 8.5 with webMAN MOD [FULL] as my development environment. 
