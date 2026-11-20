@@ -95,11 +95,19 @@ static void wait_for_xmb(int timeout_s)
 
 static void sclose(int *socket_e)
 {
+	if (!socket_e)
+	{
+		return;
+	}
+
 	if (*socket_e != -1)
 	{
-		shutdown(*socket_e, SHUT_RDWR);
-		socketclose(*socket_e);
+		int s = *socket_e;
 		*socket_e = -1;
+
+		shutdown(s, SHUT_RDWR);
+		socketclose(s);
+		
 	}
 }
 
@@ -301,7 +309,9 @@ loop:
 	while (running)
 	{
 		if (!running)
+		{
 			break;
+		}
 
 		sys_timer_usleep(IDLE_POLL);				//prevent busy wait
 
@@ -309,8 +319,13 @@ loop:
 
 		if (f < 0)
 		{
-			vshtask_notify("Listen socket failed to accept");
-			goto loop;
+			if (!running)
+			{
+				break;
+			}
+			vshtask_notify("Accept failed, recreating socket");
+			sclose(&listen_socket);
+			goto retry;
 		}
 
 		if (!running)
